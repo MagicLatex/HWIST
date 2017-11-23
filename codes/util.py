@@ -101,8 +101,8 @@ def get_sizes(match_dict, size_path = './all_size.pkl'):
         heights[i,0] = trimmed_x.size[1]
         heights[i,1] = trimmed_y.size[1]
         
-        x_names.append(k.strip(file_ext))
-        y_names.append(v.strip(file_ext))
+        x_names.append(k)
+        y_names.append(v)
         
         i = i+1
 
@@ -178,6 +178,7 @@ def removeOutlierDict(match_dict,invalid_path = './invalid.pkl', dict_path = './
     copy_match_dict = copy.deepcopy(match_dict)
     print('Remove outlier for dict...')
     print(('Number of matches before removal: %d' % len(match_dict)))
+    #print(invalid_x_names)
     for k, v in match_dict.items():
         #print(k+' '+v)
         if(k in invalid_x_names):
@@ -250,10 +251,10 @@ def load(dir):
         
         
 def main():
-    match_all_dict,unmatched = build_dict([train_lst,validate_lst,test_lst])
-    #match_all_dict,unmatched = load('./all_dict.pkl')
-    x_names,y_names,widths, heights = get_sizes(match_all_dict)
-    #x_names,y_names,widths,heights = load('./all_size.pkl')    
+    #match_all_dict,unmatched = build_dict([train_lst,validate_lst,test_lst])
+    match_all_dict,unmatched = load('./all_dict.pkl')
+    #x_names,y_names,widths, heights = get_sizes(match_all_dict)
+    x_names,y_names,widths,heights = load('./all_size.pkl')    
     outlierDetect(x_names,y_names, widths, heights)
     match_all_dict = removeOutlierDict(match_all_dict)
     #match_all_dict = load('./dict.pkl')
