@@ -1,95 +1,53 @@
 import numpy as np
 from util import *
 import matplotlib.pyplot as plt
-from sklearn.neighbors import LocalOutlierFactor
+import pickle
 
-def outlierDetect(X,n_neighbors=20):
-    clf = LocalOutlierFactor(n_neighbors=20)
-    labels = clf.fit_predict(X)
-    return clf,labels
-    
-    
+ 
+
 def main():
-    x_names,y_names, widths, heights = load('./sizes.pkl')
+    x_names,y_names, widths, heights = load('./all_size.pkl')  
     widths_hand = widths[:,0]
     widths_latex = widths[:,1]
     heights_hand = heights[:,0]
     heights_latex = heights[:,1]
-    diffs = np.abs(widths_hand-widths_latex)+np.abs(heights_hand-heights_latex)
+    diffs = (widths_hand-widths_latex)**2+(heights_hand-heights_latex)**2
     max_dist_idx = np.argmax(diffs,)
     max_dist = diffs[max_dist_idx]
     max_dist_hand_name = x_names[max_dist_idx] 
     max_dist_latex_name = y_names[max_dist_idx]
     print(diffs[max_dist_idx])
     print(max_dist_hand_name,max_dist_latex_name)
-    wh_hand = np.c_[widths[:,0],heights[:,0]]
-    wh_latex = np.c_[widths[:,1],heights[:,1]]
-    clf_hand,outlierdetect_hand = outlierDetect(wh_hand,1000)
-    clf_latex,outlierdetect_latex = outlierDetect(wh_latex)
-    _,outlierdetect_diff = outlierDetect(diffs.reshape((-1,1)))
-    num_outlier_hand = np.sum(outlierdetect_hand==-1)
-    num_outlier_latex = np.sum(outlierdetect_latex==-1)
-    num_outlier_diff = np.sum(outlierdetect_diff==-1)
 
-    max_width_hand, max_height_hand = np.max(widths[:,0]),np.max(heights[:,0])
-    min_width_hand, min_height_hand = np.min(widths[:,0]),np.min(heights[:,0])
-    max_width_latex, max_height_latex = np.max(widths[:,1]),np.max(heights[:,1])
-    min_width_latex, min_height_latex = np.min(widths[:,1]),np.min(heights[:,1])
-    max_diff, min_diff = np.max(outlierdetect_diff),np.min(outlierdetect_diff)
+    invalid_X_idx,invalid_Y_idx,invalid_diffs_idx = outlierDetect(x_names,y_names, widths, heights)
+    invalid_idx = set(np.hstack((invalid_X_idx,invalid_Y_idx,invalid_diffs_idx)))
+    print(invalid_idx)
     
-    xx_hand, yy_hand = np.meshgrid(np.linspace(min_width_hand-10, max_width_hand+10, 1000), np.linspace(min_height_hand-10, max_height_hand+10, 1000))
-    xx_latex, yy_latex = np.meshgrid(np.linspace(min_width_latex-10, max_width_latex+10, 1000), np.linspace(min_height_latex-10, max_height_latex+10, 1000))
-    xx_diffs = np.linspace(min_diff-10,max_diff+10,1000)
-    Z_hand = clf_hand._decision_function(np.c_[xx_hand.ravel(), yy_hand.ravel()])
-    Z_latex = clf_latex._decision_function(np.c_[xx_latex.ravel(), yy_latex.ravel()])
-    Z_hand = Z_hand.reshape(xx_hand.shape)
-    Z_latex = Z_latex.reshape(xx_latex.shape)
-    
-    #show_distribution  (widths_hand,widths_latex,heights_hand,heights_latex,diffs) 
-    print(outlierdetect_hand)
-    plt.figure()
-    plt.contourf(xx_hand, yy_hand, Z_hand, cmap=plt.cm.Blues_r)
-    a = plt.scatter(wh_hand[outlierdetect_hand==1,0][:200], wh_hand[outlierdetect_hand==1,1][:200], c='white',
-                    edgecolor='k', s=20)
-    b = plt.scatter(wh_hand[outlierdetect_hand==-1,0][:200], wh_hand[outlierdetect_hand==-1,1][:200], c='red',
-                    edgecolor='k', s=20)
-    plt.title("Handwritten Outlier Detection")
-    plt.axis('tight')
-    plt.legend([a, b],
-               ["normal observations",
-                "abnormal observations"],
-               loc="upper left")
-    plt.grid()
-    plt.show()   
-    
-    plt.figure()
-    plt.contourf(xx_latex, yy_latex, Z_latex, cmap=plt.cm.Blues_r)
-    a = plt.scatter(wh_latex[outlierdetect_latex==1,0][:200], wh_latex[outlierdetect_latex==1,1][:200], c='white',
-                    edgecolor='k', s=20)
-    b = plt.scatter(wh_latex[outlierdetect_latex==-1,0][:200], wh_latex[outlierdetect_latex==-1,1][:200], c='red',
-                    edgecolor='k', s=20)
-    plt.title("Latex Outlier Detection")
-    plt.axis('tight')
-    plt.legend([a, b],
-               ["normal observations",
-                "abnormal observations"],
-               loc="upper left")
-    plt.grid()
-    plt.show()  
-    
-    plt.figure()
-    a = plt.scatter(np.ones(200),diffs[outlierdetect_diff==1][:200], c='white',
-                    edgecolor='k', s=20)
-    b = plt.scatter(np.ones(200),diffs[outlierdetect_diff==-1][:200], c='red',
-                    edgecolor='k', s=20)
-    plt.title("Diff Outlier Detection")
-    plt.axis('tight')
-    plt.legend([a, b],
-               ["normal observations",
-                "abnormal observations"],
-               loc="upper left")
-    plt.grid()
-    plt.show()  
+    invalid_x_names_X =[x_names[i] for i in invalid_X_idx]
+    invalid_y_names_X =[y_names[i] for i in invalid_X_idx]
+    invalid_x_names_Y =[x_names[i] for i in invalid_Y_idx]
+    invalid_y_names_Y =[y_names[i] for i in invalid_Y_idx]
+    invalid_x_names_diffs =[x_names[i] for i in invalid_diffs_idx]
+    invalid_y_names_diffs =[y_names[i] for i in invalid_diffs_idx]
+    invalid_x_names = [x_names[i] for i in invalid_idx]
+    invalid_y_names = [y_names[i] for i in invalid_idx]
+    print('invalid for hand')
+    print(len(invalid_x_names_X))
+    print(invalid_x_names_X[-100:])
+    print(invalid_y_names_X[-100:])
+    print('invalid for latex')
+    print(len(invalid_x_names_Y))
+    print(invalid_x_names_Y[-100:])
+    print(invalid_y_names_Y[-100:])
+    print('invalid for diffs')
+    print(len(invalid_x_names_diffs))
+    print(invalid_x_names_diffs[-100:])
+    print(invalid_y_names_diffs[-100:])
+    print('invalid for all')
+    print(invalid_x_names)
+    print(invalid_y_names)    
+    #show_distribution(widths_hand,widths_latex,heights_hand,heights_latex,diffs) 
+
 
 def show_distribution(widths_hand,widths_latex,heights_hand,heights_latex,diffs):
     plt.figure()
@@ -112,8 +70,7 @@ def show_distribution(widths_hand,widths_latex,heights_hand,heights_latex,diffs)
     plt.hist(diffs, 'auto', normed=1, facecolor='red', alpha=0.75)
     plt.title('area differences histogram')
     plt.grid()
-    plt.show()
-    
+    plt.show()  
     return
 if __name__ == '__main__':
     main()
