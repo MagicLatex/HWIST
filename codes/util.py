@@ -84,7 +84,7 @@ def get_sizes(match_dict, size_path = './all_size.pkl'):
     i = 0
 
     for k, v in match_dict.items():
-        print(k+' '+v)
+        #print(k+' '+v)
         filename_x = x_dir+k
         img_x = Image.open(filename_x)
         gray_x = rgb2gray(img_x)
@@ -101,8 +101,8 @@ def get_sizes(match_dict, size_path = './all_size.pkl'):
         heights[i,0] = trimmed_x.size[1]
         heights[i,1] = trimmed_y.size[1]
         
-        x_names.append(k)
-        y_names.append(v)
+        x_names.append(k.strip(file_ext))
+        y_names.append(v.strip(file_ext))
         
         i = i+1
 
@@ -111,79 +111,17 @@ def get_sizes(match_dict, size_path = './all_size.pkl'):
     heights = heights[valid_mask,:]
     save([x_names,y_names,widths,heights],size_path) 
     return x_names,y_names,widths, heights
-
-def outlierDetect(x_names,y_names, widths, heights, num_std_away = 1.5, outlier_max_count = 150):
-    X = np.c_[widths[:,0],heights[:,0]]
-    Y = np.c_[widths[:,1],heights[:,1]]
-    print('Outlier Detection ...')
-    print('handwritten')
-    stds_X = np.std(X,axis=0)
-    medians_X = np.median(X,axis=0)
-    up_threshs_X = medians_X+num_std_away*stds_X
-    down_threshs_X = medians_X-num_std_away*stds_X
-    up_mask_X = np.logical_or(X[:,0]>up_threshs_X[0], X[:,1]>up_threshs_X[1])
-    down_mask_X = np.logical_or(X[:,0]<down_threshs_X[0], X[:,1]<down_threshs_X[1])
-    up_mask_X_idx = np.where(up_mask_X)[0]
-    down_mask_X_idx = np.where(down_mask_X)[0]
-    overthresh_X = np.sum(X[up_mask_X,:] - up_threshs_X,axis=1)
-    belowthresh_X = np.sum(down_threshs_X - X[down_mask_X,:],axis=1)
-    notthresh_X = np.hstack((overthresh_X,belowthresh_X))
-    print(notthresh_X.shape)
-    notthresh_X_idx = np.hstack((up_mask_X_idx,down_mask_X_idx))
-    invalid_X_idx = notthresh_X_idx[np.argsort(notthresh_X)[::-1]]
-    
-
-    print('latex')
-    stds_Y = np.std(Y,axis=0)
-    medians_Y = np.median(Y,axis=0)
-    up_threshs_Y = medians_Y+num_std_away*stds_Y
-    down_threshs_Y = medians_Y-num_std_away*stds_Y
-    up_mask_Y = np.logical_or(Y[:,0]>up_threshs_Y[0], Y[:,1]>up_threshs_Y[1])
-    down_mask_Y = np.logical_or(Y[:,0]<down_threshs_Y[0], Y[:,1]<down_threshs_Y[1])
-    up_mask_Y_idx = np.where(up_mask_Y)[0]
-    down_mask_Y_idx = np.where(down_mask_Y)[0]
-    overthresh_Y = np.sum(Y[up_mask_Y,:] - up_threshs_Y,axis=1)
-    belowthresh_Y = np.sum(down_threshs_Y - Y[down_mask_Y,:],axis=1)
-    notthresh_Y = np.hstack((overthresh_Y,belowthresh_Y))
-    print(notthresh_Y.shape)
-    notthresh_Y_idx = np.hstack((up_mask_Y_idx,down_mask_Y_idx))
-    invalid_Y_idx = notthresh_Y_idx[np.argsort(notthresh_Y)[::-1]]
-
-    print('difference')    
-    diffs = (X[:,0]-Y[:,0])**2+(X[:,1]-Y[:,1])**2
-    stds_diffs = np.std(diffs)
-    medians_diffs = np.median(diffs)
-    up_threshs_diffs = medians_diffs+num_std_away*stds_diffs
-    down_threshs_diffs = medians_diffs-num_std_away*stds_diffs
-    up_mask_diffs = diffs>up_threshs_diffs
-    down_mask_diffs = diffs<down_threshs_diffs
-    up_mask_diffs_idx = np.where(up_mask_diffs)[0]
-    down_mask_diffs_idx = np.where(down_mask_diffs)[0]   
-    overthresh_diffs = diffs[up_mask_diffs] - up_threshs_diffs
-    belowthresh_diffs = down_threshs_diffs - diffs[down_mask_diffs]
-    notthresh_diffs = np.hstack((overthresh_diffs,belowthresh_diffs))
-    print(notthresh_diffs.shape)
-    notthresh_diffs_idx = np.hstack((up_mask_diffs_idx,down_mask_diffs_idx))
-    invalid_diffs_idx = notthresh_diffs_idx[np.argsort(notthresh_diffs)[::-1]]
-    
-    invalid_X_idx,invalid_Y_idx,invalid_diffs_idx = invalid_X_idx[:outlier_max_count],invalid_Y_idx[:outlier_max_count],invalid_diffs_idx[:outlier_max_count]
-    invalid_idx = set(np.hstack((invalid_X_idx,invalid_Y_idx,invalid_diffs_idx)))
-    invalid_x_names = [x_names[i] for i in invalid_idx]
-    invalid_y_names = [y_names[i] for i in invalid_idx]
-    save([invalid_x_names,invalid_y_names],'./invalid.pkl')
-    return invalid_X_idx,invalid_Y_idx,invalid_diffs_idx
     
 def removeOutlierDict(match_dict,invalid_path = './invalid.pkl', dict_path = './dict.pkl'):   
     invalid_x_names,invalid_y_names = load(invalid_path)
     copy_match_dict = copy.deepcopy(match_dict)
     print('Remove outlier for dict...')
-    print(('Number of matches before removal: %d' % len(match_dict)))
-    #print(invalid_x_names)
+    print(('Number of matches before removal: %d', len(match_dict)))
     for k, v in match_dict.items():
         #print(k+' '+v)
         if(k in invalid_x_names):
             copy_match_dict.pop(k) 
-    print(('Number of matches after removal: %d' % len(copy_match_dict)))
+    print(('Number of matches after removal: %d', len(copy_match_dict)))
     save(copy_match_dict,dict_path) 
     return copy_match_dict
 
@@ -216,7 +154,7 @@ def process(match_dict, widths=None, heights=None, mode='temp', target_size_path
         target_width_x,target_height_x,target_width_y,target_height_y = load(target_size_path)
     elif(mode=='save'):
         target_width_x,target_height_x,target_width_y,target_height_y = setTargetSize(widths,heights)  
-    print(('target sizes:\n handwritten: %dx%d, latex: %dx%d'% (target_width_x,target_height_x,target_width_y,target_height_y)))
+    print(('target sizes:\n handwritten: %dx%d, latex: %dx%d'% target_width_x,target_height_x,target_width_y,target_height_y))
     for k, v in match_dict.items():
         filename_x = x_dir+k
         img_x = Image.open(filename_x)
@@ -254,12 +192,11 @@ def main():
     #match_all_dict,unmatched = build_dict([train_lst,validate_lst,test_lst])
     match_all_dict,unmatched = load('./all_dict.pkl')
     #x_names,y_names,widths, heights = get_sizes(match_all_dict)
-    x_names,y_names,widths,heights = load('./all_size.pkl')    
-    outlierDetect(x_names,y_names, widths, heights)
-    match_all_dict = removeOutlierDict(match_all_dict)
-    #match_all_dict = load('./dict.pkl')
-    removed_x_names,removed_y_names,removed_widths,removed_heights = removeOutlierSize()
-    #removed_x_names,removed_y_names,removed_widths,removed_heights = load('./size.pkl')
+    x_names,y_names,widths,heights = load('./all_size.pkl')
+    #match_all_dict = removeOutlierDict(match_all_dict)
+    match_all_dict = load('./dict.pkl')
+    #removed_x_names,removed_y_names,removed_widths,removed_heights = removeOutlierSize()
+    removed_x_names,removed_y_names,removed_widths,removed_heights = load('./size.pkl')
     process(match_all_dict, widths=removed_widths, heights=removed_heights, mode='save')
     
     
