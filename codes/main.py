@@ -9,7 +9,8 @@ from torchvision.utils import save_image
 from torchvision.datasets import MNIST
 from util import *
 from model import *
-
+import time
+import matplotlib.pyplot as plt
 
 def trainer(model,train_loader,valid_loader=None,test_loader=None,ifcuda=False):
     criterion = nn.MSELoss()
@@ -19,7 +20,9 @@ def trainer(model,train_loader,valid_loader=None,test_loader=None,ifcuda=False):
     timing = []
     print("Training ...")
     dataloader = train_loader
+    i = 0
     for epoch in range(num_epochs):
+        s = time.time()
         for input,target in dataloader:
             input,target = normalize(input,target)
             input = to_var(input,ifcuda)
@@ -31,17 +34,22 @@ def trainer(model,train_loader,valid_loader=None,test_loader=None,ifcuda=False):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            train_loss.append(loss.data[0])
+            #print("loss:%.3f" % loss.data[0])            
+            i = i + 1
         # ===================log========================
         # tmp = output.cpu().data
         # _,pic = denormalize(norm_targets=tmp)
         # print(np.min(pic.numpy()))
+        e = time.time()
+        cur_loss = np.mean(np.array(train_loss))
+        print("Elapsed Time for one epoch: %.3f" % (e-s))
         print('epoch [{}/{}], loss:{:.4f}'
-              .format(epoch+1, num_epochs, loss.data[0]))
-        train_loss.append(loss.data[0])
+              .format(epoch+1, num_epochs, cur_loss))
         if epoch % 5 == 0:
             _,pic = denormalize(norm_targets=output.cpu().data)
             save_image(pic, './output/train/image_{}.png'.format(epoch))
-    save(train_loss,'result.pkl')
+    save(train_loss,'./output/result.pkl')
     torch.save(model.state_dict(), './model/model.pth')
     return
     
@@ -49,34 +57,41 @@ def trainer(model,train_loader,valid_loader=None,test_loader=None,ifcuda=False):
 train_lst = './im2latex_train.lst'
 validate_lst = './im2latex_validate.lst'
 test_lst = './im2latex_test.lst'
-x_dir='./data/handwritten_processed/'
-y_dir='./data/latex_processed/'
+# x_dir='./data/handwritten_resized/'
+# y_dir='./data/latex_resized/'
+x_dir='./data/handwritten_padded/'
+y_dir='./data/latex_padded/'
 num_epochs = 100
-batch_size = 10
+batch_size = 48
 learning_rate = 1e-3
-handwritten_size = (41,285)
-latex_size = (40,253)
-ifcuda = False
+# handwritten_size = (41,285)
+# latex_size = (40,253)
+handwritten_size = (48,288)
+latex_size = (48,288)
+ifcuda = True
 
-#train_dict,_ = build_dict([train_lst],'./train_dict.pkl',x_dir,y_dir)
-train_dict,_ = load('./train_dict.pkl')
+#train_dict,_ = build_dict([train_lst],'./train_dict_padded.pkl',x_dir,y_dir)
+train_dict,_ = load('./train_dict_padded.pkl')
+
 #validate_dict,_ = build_dict([validate_lst],'./validate_dict.pkl',x_dir,y_dir)
-validate_dict,_ = load('./validate_dict.pkl')
-#test_dict,_ = build_dict([test_lst],'./test_dict.pkl',x_dir,y_dir)
-test_dict,_ = load('./test_dict.pkl')
+#validate_dict,_ = load('./validate_dict.pkl')
+#test_dict,_ = build_dict([test_lst],'./test_padded_dict.pkl',x_dir,y_dir)
+#test_dict,_ = load('./test_dict.pkl')
 
 train_size = len(train_dict)
-validate_size = len(train_dict)
-test_size = len(train_dict)
+# validate_size = len(train_dict)
+# test_size = len(train_dict)
 
 
-m_inputs,std_inputs,m_targets,std_targets = load('./stats.pkl')
-print(m_inputs,std_inputs,m_targets,std_targets)
+
 
 train_inputs,train_targets = load_data(train_dict,handwritten_size,latex_size,x_dir,y_dir)
 #validate_inputs,validate_targets = load_data(validate_dict,handwritten_size,latex_size,x_dir,y_dir)
 #test_inputs,test_targets = load_data(test_dict,handwritten_size,latex_size,x_dir,y_dir)
 #getStats(train_inputs,train_targets)
+
+m_inputs,std_inputs,m_targets,std_targets = load('./stats.pkl')
+print(m_inputs,std_inputs,m_targets,std_targets)
 
 print(train_inputs.shape)
 
@@ -90,6 +105,6 @@ train_loader = data_utils.DataLoader(train, batch_size=batch_size, shuffle=True)
 # test_loader = data_utils.DataLoader(test, batch_size=batch_size, shuffle=True)
 
 
-model = fcn().cuda() if ifcuda else fcn()
-trainer(model,train_loader)
+model = CAE2().cuda() if ifcuda else CAE2()
+trainer(model,train_loader,ifcuda=ifcuda)
 

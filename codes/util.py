@@ -11,8 +11,8 @@ from torch.autograd import Variable
 
 x_dir='./data/handwritten/'
 y_dir='./data/latex/'
-x_processed_dir='./data/handwritten_processed/'
-y_processed_dir='./data/latex_processed/'
+x_processed_dir='./data/handwritten_resized/'
+y_processed_dir='./data/latex_resized/'
 train_lst = './im2latex_train.lst'
 validate_lst = './im2latex_validate.lst'
 test_lst = './im2latex_test.lst'
@@ -70,11 +70,15 @@ def trim(im):
 def rgb2gray(im):
     im_gray = ImageOps.grayscale(im)
     return im_gray
-
+    
+def w2b_img(im):
+    b_im = Image.fromarray(255-np.array(im,dtype=np.uint8))
+    return b_im
+    
 def pad_img(padded_width, padded_height, old_im):
     ifvalid = old_im.size[0]<=padded_width and old_im.size[1]<=padded_height
     if(ifvalid):
-        padded_im = Image.new(old_im.mode, (padded_width,padded_height),255)
+        padded_im = Image.new(old_im.mode, (padded_width,padded_height),0)
         padded_im.paste(old_im, (int((padded_width-old_im.size[0])/2), int((padded_height-old_im.size[1])/2)))
     else:
         padded_im = None    
@@ -83,6 +87,7 @@ def pad_img(padded_width, padded_height, old_im):
 def resize_img(resized_width, resized_height, old_im):
     resized_im = old_im.resize((resized_width, resized_height), Image.ANTIALIAS)  
     return resized_im 
+
     
 def get_sizes(match_dict, size_path = './all_size.pkl'):
     print('Get size information from samples ...')
@@ -214,39 +219,53 @@ def removeOutlierSize(size_path = './all_size.pkl', invalid_path = './invalid.pk
     return removed_x_names,removed_y_names,removed_widths,removed_heights
 
 def setTargetSize(widths,heights, target_size_path='./target_size.pkl'):
-        target_width_x,target_height_x,target_width_y,target_height_y = int(np.median(widths[:,0])),int(np.median(heights[:,0])),int(np.median(widths[:,1])),int(np.median(heights[:,1]))
+        #target_width_x,target_height_x,target_width_y,target_height_y = int(np.median(widths[:,0])),int(np.median(heights[:,0])),int(np.median(widths[:,1])),int(np.median(heights[:,1]))
+        #target_width_x,target_height_x,target_width_y,target_height_y = 150,22,140,22
+        #print(int(np.median(widths[:,0])+np.std(widths[:,0])),int(np.median(heights[:,0])+np.std(heights[:,0])),int(np.median(widths[:,1])+np.std(widths[:,1])),int(np.median(heights[:,1])+np.std(heights[:,1])))
+        target_width_x,target_height_x,target_width_y,target_height_y = 288,48,288,48
         save([target_width_x,target_height_x,target_width_y,target_height_y],target_size_path)
         return target_width_x,target_height_x,target_width_y,target_height_y
         
-def process(match_dict, widths=None, heights=None, mode='temp', target_size_path='./target_size.pkl'):
+def process(match_dict, widths=None, heights=None, mode='temp', target_size_path='./target_size.pkl',dict_path = './dict_processed.pkl'):
     print('Start process data ...')
     x = []
     y = []
+    copy_match_dict = copy.deepcopy(match_dict)
     if(mode=='temp'):
         target_width_x,target_height_x,target_width_y,target_height_y = load(target_size_path)
     elif(mode=='save'):
         target_width_x,target_height_x,target_width_y,target_height_y = setTargetSize(widths,heights)  
     print(('target sizes:\n handwritten: %dx%d, latex: %dx%d'% (target_width_x,target_height_x,target_width_y,target_height_y)))
     for k, v in match_dict.items():
+        print(str(i)+' '+k+' '+v)
         filename_x = x_dir+k
         img_x = Image.open(filename_x)
         gray_x = rgb2gray(img_x)
         trimmed_x = trim(gray_x)
-        resized_x = resize_img(target_width_x, target_height_x, trimmed_x)
-
+        b_x = w2b_img(trimmed_x)
+        resized_x = resize_img(target_width_x, target_height_x, b_x)
+        #resized_x,ifvalid_x = pad_img(target_width_x, target_height_x, b_x)
+        
         filename_y = y_dir+v 
         img_y = Image.open(filename_y)
         gray_y = rgb2gray(img_y)
         trimmed_y = trim(gray_y)
+        b_y = w2b_img(trimmed_y)
         resized_y = resize_img(target_width_y, target_height_y, trimmed_y)
-        if(mode=='temp'):
-            x.append(resized_x)
-            y.append(resized_y)
-        elif(mode=='save'):
-            saved_filename_x = x_processed_dir+k
-            saved_filename_y = y_processed_dir+v
-            resized_x.save(saved_filename_x)  
-            resized_y.save(saved_filename_y)
+        #resized_y,ifvalid_y = pad_img(target_width_x, target_height_x, b_x)
+        if(ifvalid_x and ifvalid_y):
+            if(mode=='temp'):
+                x.append(resized_x)
+                y.append(resized_y)
+            elif(mode=='save'):
+                saved_filename_x = x_processed_dir+k
+                saved_filename_y = y_processed_dir+v
+                resized_x.save(saved_filename_x)  
+                resized_y.save(saved_filename_y)
+        else:
+            copy_match_dict.pop(k) 
+    print(('Number of matches after processing: %d' % len(copy_match_dict)))
+    save(copy_match_dict,dict_path) 
     if(mode=='temp'):
         return x,y
     elif(mode=='save'):
@@ -264,23 +283,25 @@ def to_var(x,ifcuda):
 
 def load_data(dict,x_size,y_size,x_dir=x_dir,y_dir=y_dir):
     N = len(dict)
-    N = 10000
-    inputs = np.zeros((N,1,x_size[0],x_size[1]),dtype=np.int16)
-    targets = np.zeros((N,1,y_size[0],y_size[1]),dtype=np.int16)
+    #N = 10000
+    inputs = np.zeros((N,1,x_size[0],x_size[1]),dtype=np.uint8)
+    targets = np.zeros((N,1,y_size[0],y_size[1]),dtype=np.uint8)
     i=0
     for k, v in dict.items():
+        #print(str(i)+' '+k+' '+v)
         if i%10000 == 0:
             print("load ",i," data")
         filename_x = x_dir+k
         img_x = Image.open(filename_x)
-        inputs[i,0,:,:] = np.array(img_x)
+        inputs[i,0,:,:] = np.array(img_x,dtype=np.uint8)
         filename_y = y_dir+v 
         img_y = Image.open(filename_y)
-        targets[i,0,:,:] = np.array(img_y)
+        targets[i,0,:,:] = np.array(img_y,dtype=np.uint8)
         i=i+1
-        if(i==10000):
-            return inputs,targets
+        # if(i==10000):
+            # return inputs,targets
     return inputs,targets
+    
 
 def getStats(inputs,targets,path='./stats.pkl'):
     m_inputs = np.mean(inputs,axis=(0,2,3))/255.0
@@ -292,8 +313,8 @@ def getStats(inputs,targets,path='./stats.pkl'):
     
 def normalize(input,target,path='./stats.pkl'):
     m_inputs,std_inputs,m_targets,std_targets = load(path)
-    norm_input = (input.numpy()/255.0-m_inputs)/std_inputs
-    norm_target = (target.numpy()/255.0-m_targets)/std_targets
+    norm_input = ((input.numpy())/255.0-m_inputs)/std_inputs
+    norm_target = ((target.numpy())/255.0-m_targets)/std_targets
     input = torch.FloatTensor(norm_input)
     target = torch.FloatTensor(norm_target)
     return input,target
@@ -313,7 +334,7 @@ def denormalize(norm_inputs=None,norm_targets=None,path='./stats.pkl'):
     else:
         target = None
     return input,target
-    
+ 
 def save(input, dir,protocol = 3):
     pickle.dump(input, open(dir, "wb" ), protocol=protocol)
     return
@@ -333,7 +354,7 @@ def main():
     removed_x_names,removed_y_names,removed_widths,removed_heights = removeOutlierSize()
     #getDuplicates(match_all_dict)
     #removed_x_names,removed_y_names,removed_widths,removed_heights = load('./size.pkl')
-    #process(match_all_dict, widths=removed_widths, heights=removed_heights, mode='save')
+    process(match_all_dict, widths=removed_widths, heights=removed_heights, mode='save')
     
     
 if __name__ == '__main__':
