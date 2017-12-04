@@ -11,8 +11,8 @@ from torch.autograd import Variable
 
 x_dir='./data/handwritten/'
 y_dir='./data/latex/'
-x_processed_dir='./data/handwritten_resized/'
-y_processed_dir='./data/latex_resized/'
+x_processed_dir='./data/handwritten_padded/'
+y_processed_dir='./data/latex_padded/'
 train_lst = './im2latex_train.lst'
 validate_lst = './im2latex_validate.lst'
 test_lst = './im2latex_test.lst'
@@ -236,28 +236,31 @@ def process(match_dict, widths=None, heights=None, mode='temp', target_size_path
     elif(mode=='save'):
         target_width_x,target_height_x,target_width_y,target_height_y = setTargetSize(widths,heights)  
     print(('target sizes:\n handwritten: %dx%d, latex: %dx%d'% (target_width_x,target_height_x,target_width_y,target_height_y)))
+    print(('Number of matches before processing: %d' % len(match_dict)))
     for k, v in match_dict.items():
-        print(str(i)+' '+k+' '+v)
+        #print(k+' '+v)
         filename_x = x_dir+k
         img_x = Image.open(filename_x)
         gray_x = rgb2gray(img_x)
         trimmed_x = trim(gray_x)
         b_x = w2b_img(trimmed_x)
-        resized_x = resize_img(target_width_x, target_height_x, b_x)
-        #resized_x,ifvalid_x = pad_img(target_width_x, target_height_x, b_x)
+        #resized_x = resize_img(target_width_x, target_height_x, b_x)
+        resized_x,ifvalid_x = pad_img(target_width_x, target_height_x, b_x)
         
         filename_y = y_dir+v 
         img_y = Image.open(filename_y)
         gray_y = rgb2gray(img_y)
         trimmed_y = trim(gray_y)
         b_y = w2b_img(trimmed_y)
-        resized_y = resize_img(target_width_y, target_height_y, trimmed_y)
-        #resized_y,ifvalid_y = pad_img(target_width_x, target_height_x, b_x)
+        #resized_y = resize_img(target_width_y, target_height_y, trimmed_y)
+        resized_y,ifvalid_y = pad_img(target_width_y, target_height_y, b_y)
         if(ifvalid_x and ifvalid_y):
             if(mode=='temp'):
                 x.append(resized_x)
                 y.append(resized_y)
             elif(mode=='save'):
+                #resized_x.show()
+                #resized_y.show()
                 saved_filename_x = x_processed_dir+k
                 saved_filename_y = y_processed_dir+v
                 resized_x.save(saved_filename_x)  
@@ -302,7 +305,21 @@ def load_data(dict,x_size,y_size,x_dir=x_dir,y_dir=y_dir):
             # return inputs,targets
     return inputs,targets
     
-
+def load_model(modelclass, ifcuda, model_path = './model/model.pth'):
+    print('Loading model ...')
+    checkpoint = torch.load(model_path)
+    model = modelclass().cuda() if ifcuda else modelclass()
+    if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:       
+        model.load_state_dict(checkpoint['state_dict'])
+    else:
+        model.load_state_dict(checkpoint)
+    return model
+    
+def save_model(model, model_path = './model/model.pth'):
+    print('Saving model ...')
+    torch.save(model.state_dict(), model_path)
+    return
+        
 def getStats(inputs,targets,path='./stats.pkl'):
     m_inputs = np.mean(inputs,axis=(0,2,3))/255.0
     std_inputs = np.std(inputs,axis=(0,2,3))/255.0
@@ -313,6 +330,10 @@ def getStats(inputs,targets,path='./stats.pkl'):
     
 def normalize(input,target,path='./stats.pkl'):
     m_inputs,std_inputs,m_targets,std_targets = load(path)
+    # inputs_transforms = transforms.Compose([
+        # transforms.ToTensor(),transforms.Normalize(m_inputs, std_inputs),])
+    # targets_transforms = transforms.Compose([
+        # transforms.ToTensor(),transforms.Normalize(m_targets, std_targets),])
     norm_input = ((input.numpy())/255.0-m_inputs)/std_inputs
     norm_target = ((target.numpy())/255.0-m_targets)/std_targets
     input = torch.FloatTensor(norm_input)
@@ -334,7 +355,16 @@ def denormalize(norm_inputs=None,norm_targets=None,path='./stats.pkl'):
     else:
         target = None
     return input,target
- 
+
+
+def showLoss(loss_path = './output/loss.pkl'):
+    loss = load(loss_path)
+    plt.figure()
+    plt.plot(np.arange(0,np.shape(loss)[0]),loss)
+    plt.grid()
+    plt.show()
+    return
+    
 def save(input, dir,protocol = 3):
     pickle.dump(input, open(dir, "wb" ), protocol=protocol)
     return

@@ -13,15 +13,17 @@ import time
 import matplotlib.pyplot as plt
 
 def trainer(model,train_loader,valid_loader=None,test_loader=None,ifcuda=False):
-    criterion = nn.MSELoss()
+    criterion = nn.L1Loss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate,
                                  weight_decay=1e-5)
-    train_loss = []
     timing = []
     print("Training ...")
     dataloader = train_loader
+    num_iter = len(dataloader)
+    train_loss = np.zeros(num_iter*num_epochs)
+    validate_loss = np.zeros(num_iter*num_epochs)
     i = 0
-    for epoch in range(num_epochs):
+    for epoch in range(init_epochs,(init_epochs+num_epochs)):
         s = time.time()
         for input,target in dataloader:
             input,target = normalize(input,target)
@@ -34,7 +36,7 @@ def trainer(model,train_loader,valid_loader=None,test_loader=None,ifcuda=False):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            train_loss.append(loss.data[0])
+            train_loss[i] = loss.data[0]
             #print("loss:%.3f" % loss.data[0])            
             i = i + 1
         # ===================log========================
@@ -42,15 +44,15 @@ def trainer(model,train_loader,valid_loader=None,test_loader=None,ifcuda=False):
         # _,pic = denormalize(norm_targets=tmp)
         # print(np.min(pic.numpy()))
         e = time.time()
-        cur_loss = np.mean(np.array(train_loss))
+        cur_epoch_train_loss = np.mean(train_loss[(epoch-init_epochs)*num_iter:(epoch-init_epochs+1)*num_iter])
         print("Elapsed Time for one epoch: %.3f" % (e-s))
         print('epoch [{}/{}], loss:{:.4f}'
-              .format(epoch+1, num_epochs, cur_loss))
+              .format(epoch+1, init_epochs+num_epochs, cur_epoch_train_loss))
         if epoch % 5 == 0:
             _,pic = denormalize(norm_targets=output.cpu().data)
             save_image(pic, './output/train/image_{}.png'.format(epoch))
-    save(train_loss,'./output/result.pkl')
-    torch.save(model.state_dict(), './model/model.pth')
+        save_model(model, './model/model_{}.pth'.format(epoch))
+        save(train_loss,'./output/result.pkl')
     return
     
     
@@ -61,7 +63,8 @@ test_lst = './im2latex_test.lst'
 # y_dir='./data/latex_resized/'
 x_dir='./data/handwritten_padded/'
 y_dir='./data/latex_padded/'
-num_epochs = 100
+init_epochs = 0
+num_epochs = 200
 batch_size = 48
 learning_rate = 1e-3
 # handwritten_size = (41,285)
@@ -73,10 +76,11 @@ ifcuda = True
 #train_dict,_ = build_dict([train_lst],'./train_dict_padded.pkl',x_dir,y_dir)
 train_dict,_ = load('./train_dict_padded.pkl')
 
-#validate_dict,_ = build_dict([validate_lst],'./validate_dict.pkl',x_dir,y_dir)
-#validate_dict,_ = load('./validate_dict.pkl')
-#test_dict,_ = build_dict([test_lst],'./test_padded_dict.pkl',x_dir,y_dir)
-#test_dict,_ = load('./test_dict.pkl')
+#validate_dict,_ = build_dict([validate_lst],'./validate_dict_padded.pkl',x_dir,y_dir)
+#validate_dict,_ = load('./validate_dict_padded.pkl')
+
+#test_dict,_ = build_dict([test_lst],'./test_dict_padded.pkl',x_dir,y_dir)
+#test_dict,_ = load('./test_dict_padded.pkl')
 
 train_size = len(train_dict)
 # validate_size = len(train_dict)
@@ -84,6 +88,7 @@ train_size = len(train_dict)
 
 
 
+#showLoss()
 
 train_inputs,train_targets = load_data(train_dict,handwritten_size,latex_size,x_dir,y_dir)
 #validate_inputs,validate_targets = load_data(validate_dict,handwritten_size,latex_size,x_dir,y_dir)
@@ -105,6 +110,7 @@ train_loader = data_utils.DataLoader(train, batch_size=batch_size, shuffle=True)
 # test_loader = data_utils.DataLoader(test, batch_size=batch_size, shuffle=True)
 
 
-model = CAE2().cuda() if ifcuda else CAE2()
+model = FC1().cuda() if ifcuda else FC1()
+#model = load_model(FC0,ifcuda)
 trainer(model,train_loader,ifcuda=ifcuda)
 
