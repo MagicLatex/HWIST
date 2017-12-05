@@ -22,7 +22,6 @@ def trainer(model,train_loader,valid_loader=None,test_loader=None,ifcuda=False):
     dataloader = train_loader
     num_iter = len(dataloader)
     train_loss = np.zeros(num_iter*num_epochs)
-    validate_loss = np.zeros(num_iter*num_epochs)
     i = 0
     for epoch in range(init_epochs,(init_epochs+num_epochs)):
         s = time.time()
@@ -103,11 +102,16 @@ print(train_inputs.shape)
 
 train_inputs = torch.from_numpy(train_inputs).type(torch.FloatTensor)
 train_targets = torch.from_numpy(train_targets).type(torch.FloatTensor)
+# validate_inputs = torch.from_numpy(validate_inputs).type(torch.FloatTensor)
+# validate_targets = torch.from_numpy(validate_targets).type(torch.FloatTensor)
+# test_inputs = torch.from_numpy(test_inputs).type(torch.FloatTensor)
+# test_targets = torch.from_numpy(test_targets).type(torch.FloatTensor)
+
 train = data_utils.TensorDataset(train_inputs,train_targets)
 train_loader = data_utils.DataLoader(train, batch_size=batch_size, shuffle=True)
-# valid = data_utils.TensorDataset(norm_validate_inputs,norm_validate_targets)
+# valid = data_utils.TensorDataset(validate_inputs,validate_targets)
 # valid_loader = data_utils.DataLoader(valid, batch_size=batch_size, shuffle=True)
-# test = data_utils.TensorDataset(norm_test_inputs,norm_test_targets)
+# test = data_utils.TensorDataset(test_inputs,test_targets)
 # test_loader = data_utils.DataLoader(test, batch_size=batch_size, shuffle=True)
 
 

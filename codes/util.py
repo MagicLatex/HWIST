@@ -330,10 +330,6 @@ def getStats(inputs,targets,path='./stats.pkl'):
     
 def normalize(input,target,path='./stats.pkl'):
     m_inputs,std_inputs,m_targets,std_targets = load(path)
-    # inputs_transforms = transforms.Compose([
-        # transforms.ToTensor(),transforms.Normalize(m_inputs, std_inputs),])
-    # targets_transforms = transforms.Compose([
-        # transforms.ToTensor(),transforms.Normalize(m_targets, std_targets),])
     norm_input = ((input.numpy())/255.0-m_inputs)/std_inputs
     norm_target = ((target.numpy())/255.0-m_targets)/std_targets
     input = torch.FloatTensor(norm_input)
@@ -355,13 +351,36 @@ def denormalize(norm_inputs=None,norm_targets=None,path='./stats.pkl'):
     else:
         target = None
     return input,target
-
-
-def showLoss(loss_path = './output/loss.pkl'):
-    loss = load(loss_path)
+    
+def showLoss(num_loss,setname):
+    loss_path = './output/'+setname+'/loss.pkl'
+    loss_iter,loss_epoch = load(loss_path)
+    loss_epoch = np.convolve(loss_epoch, np.ones((5,))/5, mode='valid')
     plt.figure()
-    plt.plot(np.arange(0,np.shape(loss)[0]),loss)
+    plt.plot(np.arange(0,num_loss),loss_epoch[:num_loss,],label=setname,linewidth=2)
     plt.grid()
+    plt.legend()
+    plt.xlabel('Epoch')
+    plt.ylabel('MSELoss')
+    plt.show()
+    return
+
+def showLoss_complete(num_loss,optimal_model):
+    train_loss_path = './output/train/loss.pkl'
+    test_loss_path = './output/test/loss.pkl'
+    _,train_loss_epoch = load(train_loss_path)
+    _,test_loss_epoch = load(test_loss_path)    
+    train_loss_epoch = np.convolve(train_loss_epoch, np.ones((5,))/5, mode='valid')
+    test_loss_epoch = np.convolve(test_loss_epoch, np.ones((5,))/5, mode='valid')
+    plt.figure(dpi=200)
+    plt.plot(np.arange(0,num_loss),train_loss_epoch[:num_loss,],'b',label='train',linewidth=2)
+    plt.scatter(optimal_model,train_loss_epoch[optimal_model], marker='o', facecolors='none', edgecolors='b', s=50)
+    plt.plot(np.arange(0,num_loss),test_loss_epoch[:num_loss,],'r',label='test',linewidth=2)
+    plt.scatter(optimal_model,test_loss_epoch[optimal_model], marker='o', facecolors='none', edgecolors='r', s=50)
+    plt.grid()
+    plt.legend()
+    plt.xlabel('Epoch')
+    plt.ylabel('MSELoss')
     plt.show()
     return
     
