@@ -9,11 +9,12 @@ from torchvision.utils import save_image
 from torchvision.datasets import MNIST
 from util import *
 from model import *
+from vnet import *
 import time
 import matplotlib.pyplot as plt
 
 def trainer(model,train_loader,valid_loader=None,test_loader=None,ifcuda=False):
-    criterion = nn.L1Loss()
+    criterion = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate,
                                  weight_decay=1e-5)
     timing = []
@@ -110,7 +111,7 @@ train_loader = data_utils.DataLoader(train, batch_size=batch_size, shuffle=True)
 # test_loader = data_utils.DataLoader(test, batch_size=batch_size, shuffle=True)
 
 
-model = FC1().cuda() if ifcuda else FC1()
+model = VNet().cuda() if ifcuda else VNet()
 #model = load_model(FC0,ifcuda)
 trainer(model,train_loader,ifcuda=ifcuda)
 
