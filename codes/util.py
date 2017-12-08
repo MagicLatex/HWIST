@@ -365,18 +365,20 @@ def showLoss(num_loss,setname):
     plt.show()
     return
 
-def showLoss_complete(num_loss,optimal_model):
-    train_loss_path = './output/train/loss.pkl'
-    test_loss_path = './output/test/loss.pkl'
-    _,train_loss_epoch = load(train_loss_path)
-    _,test_loss_epoch = load(test_loss_path)    
-    train_loss_epoch = np.convolve(train_loss_epoch, np.ones((5,))/5, mode='valid')
-    test_loss_epoch = np.convolve(test_loss_epoch, np.ones((5,))/5, mode='valid')
+def showLoss_complete(num_loss,optimal_model,modelname):
+    linestyles = ['-', '--', '-.', ':']
     plt.figure(dpi=200)
-    plt.plot(np.arange(0,num_loss),train_loss_epoch[:num_loss,],'b',label='train',linewidth=2)
-    plt.scatter(optimal_model,train_loss_epoch[optimal_model], marker='o', facecolors='none', edgecolors='b', s=50)
-    plt.plot(np.arange(0,num_loss),test_loss_epoch[:num_loss,],'r',label='test',linewidth=2)
-    plt.scatter(optimal_model,test_loss_epoch[optimal_model], marker='o', facecolors='none', edgecolors='r', s=50)
+    for i in range(len(modelname)):
+        train_loss_path = './output/'+modelname[i]+'/train/loss.pkl'
+        test_loss_path = './output/'+modelname[i]+'/test/loss.pkl'
+        _,train_loss_epoch = load(train_loss_path)
+        _,test_loss_epoch = load(test_loss_path)    
+        train_loss_epoch = np.convolve(train_loss_epoch, np.ones((5,))/5, mode='valid')
+        test_loss_epoch = np.convolve(test_loss_epoch, np.ones((5,))/5, mode='valid')
+        plt.plot(np.arange(0,num_loss),train_loss_epoch[:num_loss,],'b',label='train({})'.format(modelname[i]),linewidth=2, linestyle=linestyles[i])
+        plt.scatter(optimal_model[i],train_loss_epoch[optimal_model[i]], marker='o', facecolors='none', edgecolors='b', s=50)
+        plt.plot(np.arange(0,num_loss),test_loss_epoch[:num_loss,],'r',label='test({})'.format(modelname[i]),linewidth=2, linestyle=linestyles[i])
+        plt.scatter(optimal_model[i],test_loss_epoch[optimal_model[i]], marker='o', facecolors='none', edgecolors='r', s=50)
     plt.grid()
     plt.legend()
     plt.xlabel('Epoch')

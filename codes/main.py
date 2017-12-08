@@ -21,8 +21,10 @@ def trainer(model,train_loader,valid_loader=None,test_loader=None,ifcuda=False):
     print("Training ...")
     dataloader = train_loader
     num_iter = len(dataloader)
-    train_loss = np.zeros(num_iter*num_epochs)
+    train_loss_iter = np.zeros(num_iter*num_epochs)
+    train_loss_epoch = np.zeros(num_epochs)
     i = 0
+    j = 0
     for epoch in range(init_epochs,(init_epochs+num_epochs)):
         s = time.time()
         for input,target in dataloader:
@@ -36,7 +38,7 @@ def trainer(model,train_loader,valid_loader=None,test_loader=None,ifcuda=False):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            train_loss[i] = loss.data[0]
+            train_loss_iter[i] = loss.data[0]
             #print("loss:%.3f" % loss.data[0])            
             i = i + 1
         # ===================log========================
@@ -44,15 +46,16 @@ def trainer(model,train_loader,valid_loader=None,test_loader=None,ifcuda=False):
         # _,pic = denormalize(norm_targets=tmp)
         # print(np.min(pic.numpy()))
         e = time.time()
-        cur_epoch_train_loss = np.mean(train_loss[(epoch-init_epochs)*num_iter:(epoch-init_epochs+1)*num_iter])
+        train_loss_epoch[j] = np.mean(train_loss[(epoch-init_epochs)*num_iter:(epoch-init_epochs+1)*num_iter])
         print("Elapsed Time for one epoch: %.3f" % (e-s))
         print('epoch [{}/{}], loss:{:.4f}'
-              .format(epoch+1, init_epochs+num_epochs, cur_epoch_train_loss))
+              .format(epoch+1, init_epochs+num_epochs, train_loss_epoch[j]))
         if epoch % 5 == 0:
             _,pic = denormalize(norm_targets=output.cpu().data)
             save_image(pic, './output/train/image_{}.png'.format(epoch))
         save_model(model, './model/model_{}.pth'.format(epoch))
-        save(train_loss,'./output/result.pkl')
+        save([train_loss_iter,train_loss_epoch'./output/train/loss.pkl')
+        j = j + 1
     return
     
     
